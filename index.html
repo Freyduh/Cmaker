@@ -409,6 +409,12 @@ async function ensureSets(){
         }));
       }
     }catch(e){ console.warn('set load fail',e.message); }
+    // always append CN_SETS — fill gaps the API doesn't cover
+    // search by id (e.g. "CSV9.5") works because id is included in the filter
+    const existIds=new Set(allSets.map(s=>s.id));
+    CN_SETS.forEach(s=>{
+      if(!existIds.has(s.id)) allSets.push({id:s.id,name:s.name,series:s.series||'',date:s.releaseDate||'',total:s.manualOnly?'manual':s.total||'?',logo:s.logoUrl||''});
+    });
     setsFor=activeLang;
   })();
   await loadingSetsProm; loadingSetsProm=null;

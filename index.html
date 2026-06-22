@@ -1,842 +1,392 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Pokémon Poster Studio</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OBS Cardmaker</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;background:#0d0d1a;color:#eee}
-#app{display:flex;height:100vh}
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0e0e12; color: #e0e0e8;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 20px 48px; gap: 24px;
+  }
+  header { width: 100%; max-width: 820px; }
+  header h1 { font-size: 18px; font-weight: 600; color: #fff; letter-spacing: -0.3px; }
+  header p  { font-size: 12px; color: #555; margin-top: 2px; }
+  .layout { display: flex; gap: 28px; width: 100%; max-width: 820px; align-items: flex-start; }
 
-/* SIDEBAR */
-#side{width:300px;min-width:300px;background:#12122a;border-right:1px solid #1e1e40;display:flex;flex-direction:column;overflow:hidden}
-#side h1{padding:10px 14px;font-size:13px;font-weight:700;color:#e94580;background:#1a1a38;border-bottom:1px solid #1e1e40;flex-shrink:0}
-#side h1 span{display:block;font-size:10px;font-weight:400;color:#445;margin-top:2px}
-#sbody{flex:1;overflow-y:auto;padding:12px 14px}
+  .stage-wrap { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .logo-layer {
+    width: 320px; display: flex; align-items: center; justify-content: center;
+    padding: 10px 24px; transition: opacity 0.25s ease; min-height: 64px;
+  }
+  .logo-layer.hidden { opacity: 0; pointer-events: none; }
+  .logo-layer img { max-width: 100%; max-height: 80px; object-fit: contain; }
+  .stage {
+    position: relative; width: 320px; height: 447px;
+    border-radius: 14px; overflow: hidden;
+    background: #1a1a22; border: 1px solid #2a2a38;
+  }
+  .stage-empty {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px; color: #444; font-size: 13px;
+  }
+  .card-img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; border-radius: 14px; opacity: 0; transition: opacity 0.5s ease;
+  }
+  .card-img.visible { opacity: 1; }
+  .counter { font-size: 12px; color: #444; margin-top: 8px; letter-spacing: 0.5px; }
 
-/* MAIN */
-#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-#topbar{padding:7px 14px;background:#12122a;border-bottom:1px solid #1e1e40;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0}
-#topbar b{font-size:13px;color:#e94580}
-#canouter{flex:1;overflow:auto;background:repeating-conic-gradient(#0c0c0c 0 25%,#111 0 50%) 0 0/20px 20px;display:flex;align-items:flex-start;justify-content:center;padding:20px}
-#canvas{display:block;box-shadow:0 8px 60px rgba(0,0,0,.9);cursor:default}
+  .sidebar { flex: 1; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .panel { background: #16161e; border: 1px solid #242430; border-radius: 10px; padding: 16px; }
+  .panel-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #555; margin-bottom: 10px; }
 
-/* FORM ELEMENTS */
-.sec{margin-bottom:14px}
-.sec-t{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#445;margin-bottom:7px}
-.lbl{font-size:11px;color:#667;display:block;margin:6px 0 2px}
-input[type=text],input[type=url],input[type=number],select{
-  width:100%;padding:5px 8px;background:#07071a;border:1px solid #252545;
-  border-radius:5px;color:#ddd;font-size:12px;outline:none;display:block}
-input:focus,select:focus{border-color:#e94580}
-input[type=range]{width:100%;accent-color:#e94580;margin:3px 0;cursor:pointer}
-input[type=color]{width:34px;height:26px;border:1px solid #252545;border-radius:4px;background:none;cursor:pointer;padding:2px}
-input[type=file]{font-size:10px;color:#556;width:100%;margin:2px 0}
-.row{display:flex;gap:6px;align-items:center;margin:4px 0}
-.btn{padding:5px 12px;border-radius:5px;border:1px solid #252545;background:#1a1a38;color:#bbb;font-size:12px;cursor:pointer;white-space:nowrap}
-.btn:hover{background:#252558;border-color:#e94580;color:#fff}
-.btn.acc{background:#e94580;border-color:#e94580;color:#fff}
-.btn.acc:hover{background:#c63070}
-.btn.sm{padding:3px 8px;font-size:11px}
-.brow{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
-hr.div{border:none;border-top:1px solid #1e1e40;margin:12px 0}
+  .drop-zone {
+    border: 1.5px dashed #2e2e3e; border-radius: 8px; padding: 14px 12px;
+    text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: #6a5acd; background: rgba(106,90,205,0.06); }
+  .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-label { font-size: 12px; color: #666; pointer-events: none; }
+  .drop-label strong { color: #9d8fff; font-weight: 500; }
+  .file-badge { display: none; margin-top: 6px; font-size: 11px; background: rgba(106,90,205,0.15); color: #9d8fff; border-radius: 99px; padding: 2px 10px; }
 
-/* CARD SLOTS */
-.slot{background:#0a0a20;border:1px solid #1e1e40;border-radius:7px;margin-bottom:8px;overflow:hidden}
-.slot-h{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer}
-.slot-h:hover{background:#15153a}
-.sthumb{width:28px;height:40px;object-fit:cover;border-radius:3px;background:#1a1a3a;flex-shrink:0;border:1px solid #1e1e40}
-.sinfo{flex:1;min-width:0}
-.sinfo .sn{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sinfo .sr{font-size:10px;color:#667}
-.slot-b{padding:10px;display:none;border-top:1px solid #1e1e40}
-.slot-b.open{display:block}
-.xbtn{background:none;border:none;color:#445;cursor:pointer;font-size:16px;padding:0 3px;flex-shrink:0;line-height:1}
-.xbtn:hover{color:#e94580}
-.rgrid{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
-.rb{padding:2px 6px;border-radius:3px;border:1px solid #252545;background:#07071a;color:#667;font-size:10px;cursor:pointer}
-.rb.on{background:#e94580;border-color:#e94580;color:#fff;font-weight:700}
+  .ctrl-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .btn {
+    flex: 1; padding: 8px 10px; border-radius: 7px; border: 1px solid #2a2a38;
+    background: #1e1e28; color: #bbb; font-size: 13px; cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s; white-space: nowrap;
+  }
+  .btn:hover { background: #252530; color: #e0e0e8; }
+  .btn.on  { background: rgba(106,90,205,0.18); border-color: #6a5acd; color: #b8afff; }
+  .btn.on:hover { background: rgba(106,90,205,0.28); }
+  .btn.danger { border-color: #5a2a2a; color: #cc6666; }
+  .btn.danger:hover { background: rgba(180,60,60,0.1); }
+  .btn.nav { font-size: 18px; flex: 0 0 40px; }
+  .btn.export { background: rgba(40,160,80,0.12); border-color: #2a6a3a; color: #6fcf97; }
+  .btn.export:hover { background: rgba(40,160,80,0.22); }
 
-/* MODAL */
-#mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:100;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 16px}
-#mbg.show{display:flex}
-#modal{background:#12122a;border:1px solid #2a2a50;border-radius:11px;width:600px;max-width:100%;flex-shrink:0;margin:auto}
-#mhead{padding:12px 16px;border-bottom:1px solid #1e1e40;display:flex;align-items:center;justify-content:space-between}
-#mhead h2{font-size:14px;font-weight:700;color:#e94580}
-#mxbtn{background:none;border:none;color:#778;font-size:22px;cursor:pointer;line-height:1;padding:0 4px}
-#mxbtn:hover{color:#fff}
-#mbody{padding:14px 16px}
-#mfoot{padding:9px 16px;border-top:1px solid #1e1e40;display:flex;gap:7px;justify-content:flex-end}
-#mbody .lbl{font-size:11px;color:#667;display:block;margin:6px 0 2px}
-#mbody input[type=text],#mbody input[type=url],#mbody select,#mbody input[type=file]{
-  width:100%;padding:5px 8px;background:#07071a;border:1px solid #252545;
-  border-radius:5px;color:#ddd;font-size:12px;outline:none;display:block;margin-bottom:0}
-#mbody input:focus,#mbody select:focus{border-color:#e94580}
+  .speed-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+  .speed-row label { font-size: 12px; color: #666; white-space: nowrap; }
+  .speed-row input[type=range] { flex: 1; accent-color: #6a5acd; }
+  .speed-val { font-size: 12px; color: #9d8fff; min-width: 32px; text-align: right; }
 
-/* LANG PILLS */
-.lp{padding:3px 10px;border-radius:4px;border:1px solid #252545;background:#07071a;color:#889;font-size:11px;cursor:pointer}
-.lp.on{background:#e94580;border-color:#e94580;color:#fff;font-weight:700}
-.lp:hover{border-color:#e94580}
+  /* Thumbnails with delete */
+  .thumbs {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    max-height: 200px; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: #2a2a38 transparent;
+  }
+  .thumb-wrap {
+    position: relative; width: 50px; height: 70px; flex: 0 0 auto;
+  }
+  .thumb {
+    width: 100%; height: 100%; object-fit: cover; border-radius: 5px;
+    cursor: pointer; border: 2px solid transparent; opacity: 0.6;
+    transition: opacity 0.15s, border-color 0.15s; display: block;
+  }
+  .thumb:hover { opacity: 0.85; }
+  .thumb-wrap.selected .thumb { border-color: #6a5acd; opacity: 1; }
+  .thumb-del {
+    position: absolute; top: -5px; right: -5px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #cc4444; border: none; color: #fff;
+    font-size: 11px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.15s; padding: 0;
+  }
+  .thumb-wrap:hover .thumb-del { opacity: 1; }
+  .thumb-del:hover { background: #ff5555; }
 
-/* SET DROPDOWN — positioned, never hidden by blur */
-.srch{position:relative;margin-bottom:6px}
-.srch input{width:100%;padding:6px 28px 6px 9px;background:#07071a;border:1px solid #252545;border-radius:5px;color:#ddd;font-size:12px;outline:none;display:block}
-.srch input:focus{border-color:#e94580}
-.srch-x{position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;color:#667;cursor:pointer;font-size:14px;line-height:1}
-.drop{position:absolute;left:0;right:0;top:calc(100% + 3px);background:#0d0d28;border:1px solid #252545;border-radius:6px;max-height:220px;overflow-y:auto;z-index:200;display:none}
-.drop.show{display:block}
-.ddi{padding:8px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid #0d0d20;display:flex;align-items:center;gap:8px;user-select:none}
-.ddi:last-child{border:none}
-.ddi:hover{background:#1a1a38;color:#fff}
-.ddi img{height:20px;width:auto;flex-shrink:0}
-.dempty{padding:12px;font-size:12px;color:#445;text-align:center}
-
-/* CARD GRID */
-#cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;margin-top:8px;max-height:260px;overflow-y:auto}
-.cc{border:2px solid #1e1e40;border-radius:5px;overflow:hidden;cursor:pointer;position:relative;background:#07071a}
-.cc:hover,.cc.sel{border-color:#e94580}
-.cc img{width:100%;display:block;min-height:30px}
-.ccn{font-size:9px;padding:2px 3px;background:#0a0a1e;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#aaa}
-.ccck{display:none;position:absolute;top:3px;right:3px;background:#e94580;border-radius:50%;width:14px;height:14px;font-size:9px;align-items:center;justify-content:center;color:#fff}
-.cc.sel .ccck{display:flex}
-.spin{text-align:center;padding:16px;color:#556;font-size:12px}
-.mhr{border:none;border-top:1px solid #1e1e40;margin:12px 0}
-
-/* TOAST */
-#toast{position:fixed;bottom:16px;right:16px;background:#e94580;color:#fff;padding:8px 14px;border-radius:6px;font-size:12px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9999}
-::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0d0d1a}::-webkit-scrollbar-thumb{background:#1e1e40;border-radius:2px}
+  .thumbs-empty { font-size: 12px; color: #444; }
+  .hints { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .hint  { font-size: 11px; color: #444; display: flex; align-items: center; gap: 4px; }
+  .key   { background: #1e1e28; border: 1px solid #2e2e3e; border-radius: 4px; padding: 1px 5px; font-size: 10px; font-family: monospace; color: #666; }
 </style>
 </head>
 <body>
-<div id="app">
 
-<!-- SIDEBAR -->
-<div id="side">
-  <h1>🎴 Pokémon Poster Studio <span>Add cards → drag on canvas → download PNG</span></h1>
-  <div id="sbody">
+<header>
+  <h1>Card Overlay Tool</h1>
+  <p>Set up your cards &amp; logo, then export a self-contained OBS file</p>
+</header>
 
-    <div class="sec">
-      <div class="sec-t">Set Logo</div>
-      <span class="lbl">Logo URL</span>
-      <input type="url" id="logoUrl" placeholder="https://…" oninput="loadLogoUrl(this.value)">
-      <span class="lbl">Or upload</span>
-      <input type="file" accept="image/*" onchange="loadLogoFile(this.files[0])">
-      <span class="lbl">Width: <span id="lsLbl">300</span>px</span>
-      <input type="range" id="logoSz" min="60" max="900" value="300" oninput="document.getElementById('lsLbl').textContent=this.value;render()">
-      <span class="lbl">Y position: <span id="lyLbl">40</span></span>
-      <input type="range" id="logoY" min="0" max="800" value="40" oninput="document.getElementById('lyLbl').textContent=this.value;render()">
-      <div class="brow"><button class="btn sm" onclick="logoImg=null;render()">Clear</button></div>
+<div class="layout">
+
+  <div class="stage-wrap">
+    <div class="logo-layer hidden" id="logo-layer">
+      <img id="logo-display" src="" alt="logo" />
     </div>
-
-    <hr class="div">
-
-    <div class="sec">
-      <div class="sec-t">Background</div>
-      <div class="row">
-        <input type="color" id="bgCol" value="#1a1a2e" oninput="bgColor=this.value;render()">
-        <span style="font-size:11px;color:#556">Solid color</span>
+    <div class="stage">
+      <div class="stage-empty" id="empty-msg">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
+        Add cards to start
       </div>
-      <span class="lbl">Image URL</span>
-      <input type="url" id="bgUrl" placeholder="https://…" oninput="loadBgUrl(this.value)">
-      <span class="lbl">Or upload</span>
-      <input type="file" accept="image/*" onchange="loadBgFile(this.files[0])">
-      <span class="lbl">Opacity: <span id="bgOpLbl">100</span>%</span>
-      <input type="range" id="bgOp" min="0" max="100" value="100" oninput="document.getElementById('bgOpLbl').textContent=this.value;render()">
-      <div class="brow"><button class="btn sm" onclick="bgImg=null;document.getElementById('bgUrl').value='';render()">Clear image</button></div>
+      <img class="card-img" id="card-display" src="" alt="card" />
     </div>
-
-    <hr class="div">
-
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div class="sec-t" style="margin:0">Cards</div>
-      <button class="btn acc sm" onclick="openModal()">+ Add Card</button>
-    </div>
-    <div id="card-list"><div style="font-size:11px;color:#334;text-align:center;padding:14px 0">No cards yet</div></div>
-
+    <div class="counter" id="counter">— / —</div>
   </div>
-</div>
 
-<!-- MAIN -->
-<div id="main">
-  <div id="topbar">
-    <b>Canvas</b>
-    <span style="font-size:11px;color:#667">
-      W<input type="number" id="cW" value="1080" style="width:60px;display:inline;margin:0 3px;padding:3px 5px">
-      H<input type="number" id="cH" value="1920" style="width:60px;display:inline;margin:0 3px;padding:3px 5px">
-      <button class="btn sm" onclick="applySize()">Apply</button>
-    </span>
-    <span style="font-size:11px;color:#667">
-      <span id="zLbl">35</span>%
-      <button class="btn sm" onclick="addZ(-.1)">−</button>
-      <button class="btn sm" onclick="setZ(1)">1:1</button>
-      <button class="btn sm" onclick="addZ(.1)">+</button>
-      <button class="btn sm" onclick="fitZ()">Fit</button>
-    </span>
-    <button class="btn" style="margin-left:auto;border-color:#e94560;color:#e94560" onclick="clearBoard()">🗑 Clear Board</button>
-    <button class="btn acc" onclick="dlPNG()">⬇ Download PNG</button>
-  </div>
-  <div id="canouter">
-    <canvas id="canvas" width="1080" height="1920"></canvas>
-  </div>
-</div>
+  <div class="sidebar">
 
-</div>
-
-<!-- MODAL: scrollable overlay, click overlay to close -->
-<div id="mbg" onclick="if(event.target===this)closeModal()">
-<div id="modal">
-  <div id="mhead">
-    <h2>Add Card</h2>
-    <button id="mxbtn" onclick="closeModal()">✕</button>
-  </div>
-  <div id="mbody">
-
-    <!-- LANGUAGE -->
-    <div class="lbl" style="margin-top:0">Language</div>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">
-      <button class="lp on" onclick="setLang('en',this)">🇬🇧 English</button>
-      <button class="lp"    onclick="setLang('de',this)">🇩🇪 Deutsch</button>
-      <button class="lp"    onclick="setLang('ja',this)">🇯🇵 日本語</button>
-      <button class="lp"    onclick="setLang('ko',this)">🇰🇷 한국어</button>
-      <button class="lp"    onclick="setLang('zh-Hans',this)">🇨🇳 简体中文</button>
-      <button class="lp"    onclick="setLang('fr',this)">🇫🇷 Français</button>
-      <button class="lp"    onclick="setLang('es',this)">🇪🇸 Español</button>
-      <button class="lp"    onclick="setLang('it',this)">🇮🇹 Italiano</button>
-      <button class="lp"    onclick="setLang('pt',this)">🇧🇷 Português</button>
-    </div>
-
-    <!-- SET SEARCH -->
-    <div class="lbl">Set <span style="color:#334;font-weight:400">(search, or skip and type name below)</span></div>
-    <div class="srch" id="setWrap">
-      <input type="text" id="setQ" placeholder="Type to search sets…" autocomplete="off" oninput="onSetQ(this.value)">
-      <button class="srch-x" onclick="clearSetQ()">✕</button>
-      <div class="drop" id="setDrop"></div>
-    </div>
-
-    <!-- CHOSEN SET BADGE -->
-    <div id="chosenBadge" style="display:none;margin-bottom:8px;padding:8px;background:#07071a;border-radius:6px;border:1px solid #252545;font-size:12px">
-      <div id="chosenInner"></div>
-      <button class="btn sm" style="margin-top:6px" onclick="resetSet()">Change set</button>
-    </div>
-
-    <!-- MANUAL SET NAME -->
-    <div class="lbl">Set name for poster <span style="color:#334">(auto-filled, or type yourself)</span></div>
-    <input type="text" id="manSetName" placeholder="e.g. Prismatische Entwicklungen" style="margin-bottom:12px">
-
-    <!-- CARD PICKER -->
-    <div id="cardArea" style="display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div class="lbl" style="margin:0">Cards <span id="langTag" style="color:#e94580;font-weight:700"></span></div>
-        <div style="display:flex;gap:5px">
-          <button class="btn sm" onclick="selectAllVisible()">All</button>
-          <button class="btn sm" onclick="clearSelection()">None</button>
-        </div>
-      </div>
-      <div class="srch">
-        <input type="text" id="cardQ" placeholder="Filter by name or number…" oninput="filterCards(this.value)">
-      </div>
-      <div id="rarFilters" style="display:flex;flex-wrap:wrap;gap:3px;margin:5px 0 4px"></div>
-      <div id="typeFilters" style="display:flex;flex-wrap:wrap;gap:3px;margin:0 0 6px"></div>
-      <div id="cgrid"></div>
-      <div id="cspin" class="spin" style="display:none">Loading cards…</div>
-      <div id="selBar" style="margin-top:8px;padding:8px 10px;background:#0f0f28;border-radius:6px;border:1px solid #2a2a50;display:none;align-items:center;justify-content:space-between;gap:8px">
-        <span id="selCount" style="font-size:12px;color:#aaa"></span>
-        <button class="btn acc sm" onclick="buildCollage()">🎴 Build Collage</button>
+    <div class="panel">
+      <div class="panel-title">Cards</div>
+      <div class="drop-zone">
+        <input type="file" id="card-input" accept="image/*" multiple />
+        <div class="drop-label"><strong>Click or drag</strong> card images<br><span style="font-size:11px;">PNG · WEBP · JPG — multiple at once</span></div>
+        <div class="file-badge" id="card-badge"></div>
       </div>
     </div>
 
-    <hr class="mhr">
+    <div class="panel">
+      <div class="panel-title">Logo — floats above card</div>
+      <div class="drop-zone">
+        <input type="file" id="logo-input" accept="image/*" />
+        <div class="drop-label"><strong>Click or drag</strong> logo (transparent PNG/WEBP)</div>
+        <div class="file-badge" id="logo-badge"></div>
+      </div>
+    </div>
 
-    <!-- MANUAL IMAGE -->
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#445;margin-bottom:6px">Image</div>
-    <div class="lbl">Paste URL <span style="color:#334">(or use selected card above)</span></div>
-    <input type="url" id="manUrl" placeholder="https://…" style="margin-bottom:6px">
-    <div class="lbl">Or upload file</div>
-    <input type="file" id="manFile" accept="image/*" style="margin-bottom:10px">
+    <div class="panel">
+      <div class="panel-title">Controls</div>
+      <div class="ctrl-row">
+        <button class="btn nav" id="prev-btn" title="Previous (←)">‹</button>
+        <button class="btn nav" id="next-btn" title="Next (→)">›</button>
+        <button class="btn on"  id="cycle-toggle">Auto: ON</button>
+        <button class="btn on"  id="logo-toggle">Logo: ON</button>
+      </div>
+      <div class="speed-row">
+        <label>Speed</label>
+        <input type="range" id="speed-slider" min="1" max="15" value="4" step="1" />
+        <span class="speed-val" id="speed-val">4s</span>
+      </div>
+      <div class="hints" style="margin-top:10px;">
+        <span class="hint"><span class="key">←</span><span class="key">→</span> cycle</span>
+        <span class="hint"><span class="key">L</span> logo</span>
+        <span class="hint"><span class="key">Space</span> pause</span>
+      </div>
+    </div>
 
-    <!-- NAME & RARITY -->
-    <div class="lbl">Card name <span style="color:#334">(blank = use API name)</span></div>
-    <input type="text" id="manName" placeholder="e.g. Sylveon ex" style="margin-bottom:6px">
-    <div class="lbl">Rarity</div>
-    <select id="manRar" style="margin-bottom:4px">
-      <option value="">— from API / leave blank —</option>
-      <option>Common</option><option>Uncommon</option><option>Rare</option>
-      <option>Double Rare</option><option>Ultra Rare</option>
-      <option>Illustration Rare</option><option>Special Illustration Rare</option>
-      <option>Secret Rare</option><option>Gold</option>
-    </select>
+    <div class="panel">
+      <div class="panel-title">Card deck — hover a card to delete it</div>
+      <div class="thumbs" id="thumb-row">
+        <div class="thumbs-empty" id="thumbs-empty">No cards yet</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Export for OBS</div>
+      <p style="font-size:12px; color:#555; margin-bottom:10px;">Downloads a standalone HTML with all cards &amp; logo baked in — add it to OBS as a Browser Source (Local File).</p>
+      <button class="btn export" id="export-btn" style="flex:none; width:100%; padding:10px;">⬇ Download OBS file</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Danger zone</div>
+      <button class="btn danger" id="clear-btn" style="width:100%;">Clear everything</button>
+    </div>
 
   </div>
-  <div id="mfoot">
-    <button class="btn" onclick="closeModal()">Cancel</button>
-    <button class="btn" onclick="doAddSingle()">Add single card</button>
-  </div>
 </div>
-</div>
-
-<div id="toast"></div>
 
 <script>
-/* ════════════════════════════
-   CANVAS
-════════════════════════════ */
-const canvas = document.getElementById('canvas');
-const ctx    = canvas.getContext('2d');
-let bgColor='#1a1a2e', bgImg=null, logoImg=null, cards=[], zoom=0.35;
+  let cards = [], idx = 0, logoVisible = true, autoCycle = true, timer = null;
 
-function applySize(){ canvas.width=+document.getElementById('cW').value||1080; canvas.height=+document.getElementById('cH').value||1920; render(); }
-function setZ(z){ zoom=Math.max(.05,Math.min(5,z)); document.getElementById('zLbl').textContent=Math.round(zoom*100); canvas.style.width=Math.round(canvas.width*zoom)+'px'; canvas.style.height=Math.round(canvas.height*zoom)+'px'; }
-function addZ(d){ setZ(zoom+d); }
-function fitZ(){ const o=document.getElementById('canouter'); setZ(Math.min((o.clientWidth-40)/canvas.width,(o.clientHeight-40)/canvas.height,.99)); }
+  const cardDisplay = document.getElementById('card-display');
+  const logoDisplay = document.getElementById('logo-display');
+  const logoLayer   = document.getElementById('logo-layer');
+  const thumbRow    = document.getElementById('thumb-row');
+  const counter     = document.getElementById('counter');
+  const emptyMsg    = document.getElementById('empty-msg');
+  const cardBadge   = document.getElementById('card-badge');
+  const logoBadge   = document.getElementById('logo-badge');
+  const logoToggle  = document.getElementById('logo-toggle');
+  const cycleToggle = document.getElementById('cycle-toggle');
+  const speedSlider = document.getElementById('speed-slider');
+  const speedVal    = document.getElementById('speed-val');
 
-/* ════════════════════════════
-   IMAGE HELPERS
-════════════════════════════ */
-function loadImg(src,cb){
-  if(!src){cb(null);return;}
-  const img=new Image(); img.crossOrigin='anonymous';
-  img.onload=()=>cb(img);
-  img.onerror=()=>{
-    if(src.startsWith('data:')||src.includes('corsproxy.io')){cb(null);return;}
-    const p=new Image(); p.onload=()=>cb(p); p.onerror=()=>cb(null);
-    p.src='https://corsproxy.io/?'+encodeURIComponent(src);
-  };
-  img.src=src;
-}
-function fileToImg(file,cb){ const r=new FileReader(); r.onload=e=>{const i=new Image();i.onload=()=>cb(i);i.src=e.target.result;}; r.readAsDataURL(file); }
+  function getInterval() { return parseInt(speedSlider.value) * 1000; }
 
-function loadBgUrl(u){ loadImg(u,img=>{bgImg=img;render();}); }
-function loadBgFile(f){ if(f) fileToImg(f,img=>{bgImg=img;render();}); }
-function loadLogoUrl(u){ loadImg(u,img=>{logoImg=img;render();}); }
-function loadLogoFile(f){ if(f) fileToImg(f,img=>{logoImg=img;render();}); }
-
-/* ════════════════════════════
-   RENDER
-════════════════════════════ */
-let raf=null;
-function render(){ if(raf) cancelAnimationFrame(raf); raf=requestAnimationFrame(draw); }
-
-function draw(){
-  const W=canvas.width,H=canvas.height;
-  ctx.clearRect(0,0,W,H);
-  // background
-  const op=+document.getElementById('bgOp').value/100;
-  ctx.save(); ctx.globalAlpha=op;
-  if(bgImg){
-    const ia=bgImg.naturalWidth/bgImg.naturalHeight,ca=W/H;
-    let sx=0,sy=0,sw=bgImg.naturalWidth,sh=bgImg.naturalHeight;
-    if(ia>ca){sw=sh*ca;sx=(bgImg.naturalWidth-sw)/2;}else{sh=sw/ca;sy=(bgImg.naturalHeight-sh)/2;}
-    ctx.drawImage(bgImg,sx,sy,sw,sh,0,0,W,H);
-  } else { ctx.fillStyle=bgColor; ctx.fillRect(0,0,W,H); }
-  ctx.restore();
-  // logo
-  if(logoImg){
-    const sz=+document.getElementById('logoSz').value||300;
-    const ly=+document.getElementById('logoY').value||40;
-    const lh=Math.round(sz/(logoImg.naturalWidth/logoImg.naturalHeight));
-    ctx.save(); ctx.shadowColor='rgba(0,0,0,.4)'; ctx.shadowBlur=12;
-    ctx.drawImage(logoImg,W/2-sz/2,ly,sz,lh);
-    ctx.restore();
-  }
-  // cards
-  cards.forEach(c=>{
-    if(!c.img) return;
-    ctx.save(); ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=18;
-    ctx.drawImage(c.img,c.x,c.y,c.w,c.h);
-    ctx.restore();
-    if(c.showLabel&&c.name){
-      ctx.save();
-      ctx.font='bold 14px Arial'; ctx.textAlign='center'; ctx.textBaseline='top';
-      ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=8; ctx.fillStyle='#fff';
-      ctx.fillText(c.name,c.x+c.w/2,c.y+c.h+5);
-      ctx.restore();
+  function showCard() {
+    if (!cards.length) {
+      cardDisplay.classList.remove('visible');
+      emptyMsg.style.display = '';
+      counter.textContent = '— / —';
+      return;
     }
-    if(dragging===c){ ctx.save(); ctx.strokeStyle='#4adeff'; ctx.lineWidth=Math.max(2,2/zoom); ctx.setLineDash([7,4]); ctx.strokeRect(c.x,c.y,c.w,c.h); ctx.restore(); }
-  });
-}
+    emptyMsg.style.display = 'none';
+    cardDisplay.src = cards[idx].src;
+    cardDisplay.classList.add('visible');
+    counter.textContent = `${idx + 1} / ${cards.length}`;
+    document.querySelectorAll('.thumb-wrap').forEach((w, i) => w.classList.toggle('selected', i === idx));
+  }
 
-/* ════════════════════════════
-   DRAG
-════════════════════════════ */
-let dragging=null,offX=0,offY=0;
-function cxy(e){ const r=canvas.getBoundingClientRect(); return{cx:(e.clientX-r.left)/zoom,cy:(e.clientY-r.top)/zoom}; }
-function hit(cx,cy,c){ return cx>=c.x&&cx<=c.x+c.w&&cy>=c.y&&cy<=c.y+c.h; }
-canvas.addEventListener('mousedown',e=>{ const{cx,cy}=cxy(e); for(let i=cards.length-1;i>=0;i--){ if(hit(cx,cy,cards[i])){ dragging=cards[i]; offX=cx-cards[i].x; offY=cy-cards[i].y; canvas.style.cursor='grabbing'; return; } } });
-canvas.addEventListener('mousemove',e=>{ const{cx,cy}=cxy(e); if(dragging){ dragging.x=Math.round((cx-offX)/8)*8; dragging.y=Math.round((cy-offY)/8)*8; render(); return; } canvas.style.cursor=cards.some(c=>hit(cx,cy,c))?'grab':'default'; });
-canvas.addEventListener('mouseup',()=>{dragging=null;canvas.style.cursor='default';});
-canvas.addEventListener('mouseleave',()=>{dragging=null;});
-canvas.addEventListener('touchstart',e=>{e.preventDefault();const{cx,cy}=cxy(e.touches[0]);for(let i=cards.length-1;i>=0;i--){if(hit(cx,cy,cards[i])){dragging=cards[i];offX=cx-cards[i].x;offY=cy-cards[i].y;return;}}},{passive:false});
-canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!dragging)return;const{cx,cy}=cxy(e.touches[0]);dragging.x=Math.round((cx-offX)/8)*8;dragging.y=Math.round((cy-offY)/8)*8;render();},{passive:false});
-canvas.addEventListener('touchend',()=>{dragging=null;});
+  function next() { if (!cards.length) return; idx = (idx + 1) % cards.length; showCard(); }
+  function prev() { if (!cards.length) return; idx = (idx - 1 + cards.length) % cards.length; showCard(); }
 
-/* ════════════════════════════
-   API  (no external scripts)
-════════════════════════════ */
-const PTCG   = 'https://api.pokemontcg.io/v2';
-const TCGDEX = 'https://api.tcgdex.net/v2';
+  function startCycle() {
+    clearInterval(timer);
+    if (autoCycle && cards.length > 1) timer = setInterval(next, getInterval());
+  }
 
-let activeLang='en', allSets=[], setsFor='', setCards=[], chosenSet=null, chosenCard=null;
+  function deleteCard(i) {
+    cards.splice(i, 1);
+    if (!cards.length) { idx = 0; rebuildThumbs(); showCard(); startCycle(); return; }
+    if (idx >= cards.length) idx = cards.length - 1;
+    rebuildThumbs();
+    showCard();
+    startCycle();
+  }
 
-function setLang(lang,btn){
-  activeLang=lang; setsFor=''; allSets=[];
-  document.querySelectorAll('.lp').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
-  document.getElementById('langTag').textContent=btn.textContent.trim();
-  resetSet();
-}
+  function rebuildThumbs() {
+    thumbRow.innerHTML = '';
+    if (!cards.length) {
+      const d = document.createElement('div'); d.className = 'thumbs-empty'; d.textContent = 'No cards yet';
+      thumbRow.appendChild(d);
+      cardBadge.style.display = 'none';
+      return;
+    }
+    cards.forEach((c, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'thumb-wrap' + (i === idx ? ' selected' : '');
 
-/* SET SEARCH */
-let loadingSetsProm=null;
-async function ensureSets(){
-  if(setsFor===activeLang) return;
-  if(loadingSetsProm){ await loadingSetsProm; return; }
-  loadingSetsProm=(async()=>{
-    allSets=[];
-    try{
-      if(activeLang==='en'){
-        const r=await fetch(`${PTCG}/sets?pageSize=250&orderBy=-releaseDate`);
-        const d=await r.json();
-        allSets=(d.data||[]).map(s=>({id:s.id,name:s.name,series:s.series||'',date:s.releaseDate||'',total:s.total,logo:s.images?.logo||''}));
-      } else {
-        const r=await fetch(`${TCGDEX}/${activeLang}/sets`);
-        if(!r.ok) throw new Error('HTTP '+r.status);
-        const d=await r.json();
-        allSets=(Array.isArray(d)?d:[]).map(s=>({
-          id:s.id, name:s.name||s.id,
-          series:typeof s.serie==='string'?s.serie:(s.serie?.name||''),
-          date:s.releaseDate||'',
-          total:s.cardCount?.total||s.cardCount?.official||'?',
-          logo:s.logo?s.logo+'.png':''
-        }));
-      }
-    }catch(e){ console.warn('set load fail',e.message); }
-    // always append CN_SETS — fill gaps the API doesn't cover
-    // search by id (e.g. "CSV9.5") works because id is included in the filter
-    const existIds=new Set(allSets.map(s=>s.id));
-    CN_SETS.forEach(s=>{
-      if(!existIds.has(s.id)) allSets.push({id:s.id,name:s.name,series:s.series||'',date:s.releaseDate||'',total:s.manualOnly?'manual':s.total||'?',logo:s.logoUrl||''});
+      const img = document.createElement('img');
+      img.src = c.src; img.className = 'thumb'; img.title = c.name;
+      img.onclick = () => { idx = i; showCard(); startCycle(); };
+
+      const del = document.createElement('button');
+      del.className = 'thumb-del'; del.title = 'Remove this card'; del.textContent = '✕';
+      del.onclick = (e) => { e.stopPropagation(); deleteCard(i); };
+
+      wrap.appendChild(img); wrap.appendChild(del);
+      thumbRow.appendChild(wrap);
     });
-    setsFor=activeLang;
-  })();
-  await loadingSetsProm; loadingSetsProm=null;
-}
-
-async function onSetQ(q){
-  const drop=document.getElementById('setDrop');
-  if(!q){ drop.classList.remove('show'); return; }
-  if(setsFor!==activeLang){
-    drop.innerHTML='<div class="dempty">Loading…</div>'; drop.classList.add('show');
-    await ensureSets();
-  }
-  const ql=q.toLowerCase();
-  const hits=allSets.filter(s=>(s.name||'').toLowerCase().includes(ql)||(s.series||'').toLowerCase().includes(ql)||(s.id||'').toLowerCase().includes(ql)).slice(0,25);
-  if(!hits.length){ drop.innerHTML='<div class="dempty">No sets found</div>'; drop.classList.add('show'); return; }
-  drop.innerHTML='';
-  hits.forEach(s=>{
-    const d=document.createElement('div');
-    d.className='ddi';
-    const logoHtml=s.logo?`<img src="${s.logo}" onerror="this.style.display='none'" style="height:18px">`:'';
-    d.innerHTML=`${logoHtml}<div><div style="font-weight:600">${s.name}</div><div style="font-size:10px;color:#667">${s.series}${s.date?' · '+s.date:''} · ${s.total||'?'} cards</div></div>`;
-    d.addEventListener('click',()=>{ pickSet(s.id); });
-    drop.appendChild(d);
-  });
-  drop.classList.add('show');
-}
-
-function clearSetQ(){ document.getElementById('setQ').value=''; document.getElementById('setDrop').classList.remove('show'); }
-
-async function pickSet(id){
-  document.getElementById('setDrop').classList.remove('show');
-  chosenSet=allSets.find(s=>s.id===id);
-  if(!chosenSet) return;
-  document.getElementById('setQ').value=chosenSet.name;
-  document.getElementById('chosenBadge').style.display='block';
-  const logo=chosenSet.logo?`<img src="${chosenSet.logo}" style="height:24px;max-width:130px" onerror="this.style.display='none'">`:chosenSet.name;
-  document.getElementById('chosenInner').innerHTML=`<div style="display:flex;align-items:center;gap:8px">${logo}<div><b style="font-size:12px">${chosenSet.name}</b><div style="font-size:10px;color:#667">${chosenSet.series} · ${chosenSet.total||'?'} cards</div></div></div>`;
-  if(!document.getElementById('manSetName').value) document.getElementById('manSetName').value=chosenSet.name;
-  if(chosenSet.logo){ document.getElementById('logoUrl').value=chosenSet.logo; loadLogoUrl(chosenSet.logo); }
-  document.getElementById('cardArea').style.display='block';
-  await loadCards(id);
-}
-
-function resetSet(){
-  chosenSet=null; chosenCard=null; setCards=[]; activeRarity=''; activeType='';
-  document.getElementById('chosenBadge').style.display='none';
-  document.getElementById('cardArea').style.display='none';
-  document.getElementById('selCard').style.display='none';
-  document.getElementById('setQ').value='';
-  document.getElementById('cgrid').innerHTML='';
-  document.getElementById('setDrop').classList.remove('show');
-}
-
-/* CARD LOADING */
-async function loadCards(setId){
-  const grid=document.getElementById('cgrid'), spin=document.getElementById('cspin');
-  grid.innerHTML=''; setCards=[]; spin.style.display='block';
-  try{
-    if(activeLang==='en'){
-      let page=1,total=0;
-      do{
-        const r=await fetch(`${PTCG}/cards?q=set.id:${setId}&pageSize=250&page=${page}&orderBy=number`);
-        const d=await r.json();
-        (d.data||[]).forEach(c=>setCards.push({id:c.id,name:c.name,number:c.number||'',rarity:c.rarity||'',types:(c.types||[]),setName:c.set?.name||'',imgS:c.images?.small||'',imgL:c.images?.large||c.images?.small||''}));
-        total=d.totalCount||0; page++;
-      }while(setCards.length<total&&page<=10);
-    } else {
-      const r=await fetch(`${TCGDEX}/${activeLang}/sets/${setId}`);
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      const d=await r.json();
-      setCards=(d.cards||[]).map(c=>({id:setId+'-'+c.localId,name:c.name||c.localId,number:String(c.localId||''),rarity:c.rarity||'',types:(c.types||[]),setName:chosenSet?.name||'',imgS:c.image?c.image+'/low.webp':'',imgL:c.image?c.image+'/high.webp':''}));
-    }
-  }catch(e){ spin.style.display='none'; grid.innerHTML=`<div class="dempty">Could not load cards (${e.message}).<br>Use manual image below.</div>`; return; }
-  spin.style.display='none';
-  activeRarity='';
-  activeType='';
-  buildRarFilters();
-  buildTypeFilters();
-  renderGrid(setCards);
-}
-
-// multi-select state
-const selectedIds = new Set();
-let visibleCards = []; // cards currently shown in grid (after filter)
-
-function renderGrid(list){
-  visibleCards = list;
-  const grid=document.getElementById('cgrid');
-  if(!list.length){ grid.innerHTML='<div class="dempty">No cards found</div>'; updateSelBar(); return; }
-  grid.innerHTML='';
-  list.forEach(c=>{
-    const el=document.createElement('div');
-    el.className='cc'+(selectedIds.has(c.id)?' sel':'');
-    el.id='cc-'+c.id.replace(/[^a-z0-9]/gi,'_');
-    el.innerHTML=`<img src="${c.imgS}" loading="lazy" onerror="this.style.opacity='.1'"><div class="ccn">${c.name} #${c.number}</div><div class="ccck">\u2713</div>`;
-    el.addEventListener('click',()=>toggleSel(c.id));
-    grid.appendChild(el);
-  });
-  updateSelBar();
-}
-
-let activeRarity='', activeType=''; // '' = all
-
-// Pokémon type emoji map
-const TYPE_EMOJI={
-  'Grass':'\U0001f33f','Fire':'\U0001f525','Water':'\U0001f4a7','Lightning':'\u26a1',
-  'Psychic':'\U0001f52e','Fighting':'\U0001f94a','Darkness':'\U0001f311','Metal':'\u2699\ufe0f',
-  'Dragon':'\U0001f409','Fairy':'\U0001f9da','Colorless':'\u2b50','Normal':'\u2b50',
-  'Poison':'\u2620\ufe0f','Ice':'\u2744\ufe0f','Ground':'\U0001f3d4\ufe0f',
-  'Flying':'\U0001f985','Bug':'\U0001f41b','Rock':'\U0001f5ff','Ghost':'\U0001f47b',
-  'Steel':'\u2699\ufe0f','Electric':'\u26a1','Dark':'\U0001f311',
-  // Japanese/TCGdex names
-  '\u8349':'\U0001f33f','\u307b\u306e\u304a':'\U0001f525','\u6c34':'\U0001f4a7',
-  '\u96fb\u6c17':'\u26a1','\u8d85\u80fd\u529b':'\U0001f52e','\u683c\u95d8':'\U0001f94a',
-  '\u60aa\u3044':'\U0001f311','\u91d1\u5c5e':'\u2699\ufe0f','\u30c9\u30e9\u30b4\u30f3':'\U0001f409',
-  '\u30d5\u30a7\u30a2\u30ea\u30fc':'\U0001f9da','\u7121\u8272':'\u2b50'
-};
-
-function getTypeEmoji(t){ return TYPE_EMOJI[t]||'\U0001f3af'; }
-
-function buildRarFilters(){
-  const box=document.getElementById('rarFilters');
-  if(!box) return;
-  const seen=new Set(), rarities=[];
-  setCards.forEach(c=>{ if(c.rarity&&!seen.has(c.rarity)){seen.add(c.rarity);rarities.push(c.rarity);} });
-  box.innerHTML='';
-  const all=document.createElement('button');
-  all.className='rb on'; all.id='rar-ALL'; all.textContent='All ('+setCards.length+')';
-  all.addEventListener('click',()=>pickRarity(''));
-  box.appendChild(all);
-  rarities.forEach(r=>{
-    const count=setCards.filter(c=>c.rarity===r).length;
-    const b=document.createElement('button');
-    b.className='rb'; b.id='rar-'+r.replace(/[^a-z0-9]/gi,'_');
-    b.textContent=r+' ('+count+')';
-    b.addEventListener('click',()=>pickRarity(r));
-    box.appendChild(b);
-  });
-}
-
-function buildTypeFilters(){
-  const box=document.getElementById('typeFilters');
-  if(!box) return;
-  const seen=new Set(), types=[];
-  setCards.forEach(c=>(c.types||[]).forEach(t=>{ if(!seen.has(t)){seen.has(t);seen.add(t);types.push(t);} }));
-  box.innerHTML='';
-  if(!types.length) return; // no type data — hide row
-  const all=document.createElement('button');
-  all.className='rb on'; all.id='typ-ALL';
-  all.textContent='\U0001f3af All types';
-  all.addEventListener('click',()=>pickType(''));
-  box.appendChild(all);
-  types.forEach(t=>{
-    const count=setCards.filter(c=>(c.types||[]).includes(t)).length;
-    const b=document.createElement('button');
-    b.className='rb'; b.id='typ-'+t.replace(/[^a-z0-9]/gi,'_');
-    b.textContent=getTypeEmoji(t)+' '+t+' ('+count+')';
-    b.addEventListener('click',()=>pickType(t));
-    box.appendChild(b);
-  });
-}
-
-function pickRarity(r){
-  activeRarity=r;
-  document.querySelectorAll('#rarFilters .rb').forEach(b=>b.classList.remove('on'));
-  const t=r?document.getElementById('rar-'+r.replace(/[^a-z0-9]/gi,'_')):document.getElementById('rar-ALL');
-  if(t) t.classList.add('on');
-  filterCards(document.getElementById('cardQ').value);
-}
-
-function pickType(t){
-  activeType=t;
-  document.querySelectorAll('#typeFilters .rb').forEach(b=>b.classList.remove('on'));
-  const el=t?document.getElementById('typ-'+t.replace(/[^a-z0-9]/gi,'_')):document.getElementById('typ-ALL');
-  if(el) el.classList.add('on');
-  filterCards(document.getElementById('cardQ').value);
-}
-
-function filterCards(q){
-  const ql=q.toLowerCase();
-  let list=setCards;
-  if(activeRarity) list=list.filter(c=>c.rarity===activeRarity);
-  if(activeType)   list=list.filter(c=>(c.types||[]).includes(activeType));
-  if(ql) list=list.filter(c=>(c.name||'').toLowerCase().includes(ql)||(c.number||'').includes(ql));
-  renderGrid(list);
-}
-
-function toggleSel(id){
-  if(selectedIds.has(id)) selectedIds.delete(id);
-  else selectedIds.add(id);
-  const el=document.getElementById('cc-'+id.replace(/[^a-z0-9]/gi,'_'));
-  if(el) el.classList.toggle('sel', selectedIds.has(id));
-  updateSelBar();
-}
-
-function selectAllVisible(){
-  visibleCards.forEach(c=>selectedIds.add(c.id));
-  document.querySelectorAll('.cc').forEach(el=>el.classList.add('sel'));
-  updateSelBar();
-}
-
-function clearSelection(){
-  selectedIds.clear();
-  document.querySelectorAll('.cc').forEach(el=>el.classList.remove('sel'));
-  updateSelBar();
-}
-
-function updateSelBar(){
-  const bar=document.getElementById('selBar');
-  const cnt=document.getElementById('selCount');
-  const n=selectedIds.size;
-  if(n>0){
-    bar.style.display='flex';
-    cnt.textContent=n+' card'+(n>1?'s':'')+' selected';
-  } else {
-    bar.style.display='none';
-  }
-}
-
-/* Build collage — auto-layout, guaranteed to fit within canvas */
-function buildCollage(){
-  const toAdd=setCards.filter(c=>selectedIds.has(c.id));
-  if(!toAdd.length){toast('No cards selected');return;}
-  closeModal();
-  toast('Building collage…');
-
-  const W=canvas.width, H=canvas.height;
-  const PAD=14;           // gap between cards & edges
-  const CARD_ASPECT=1.4;  // pokémon card h/w ratio
-
-  // reserve space below logo
-  let startY=PAD;
-  if(logoImg){
-    const sz=+document.getElementById('logoSz').value||300;
-    const ly=+document.getElementById('logoY').value||40;
-    const lh=Math.round(sz/(logoImg.naturalWidth/logoImg.naturalHeight));
-    startY=ly+lh+PAD;
+    cardBadge.textContent = `${cards.length} card${cards.length !== 1 ? 's' : ''} loaded`;
+    cardBadge.style.display = 'inline-block';
   }
 
-  const availH=H-startY-PAD;  // vertical space for cards
-  const availW=W-PAD;          // horizontal space
-  const n=toAdd.length;
-
-  // find the best (cols x rows) combo that fits all cards and maximises card size
-  let bestCols=1, bestW=0;
-  for(let c=1;c<=n;c++){
-    const rows=Math.ceil(n/c);
-    // card width limited by columns, card height limited by rows
-    const wByCol=Math.floor((availW-PAD*(c-1))/c);
-    const hByRow=Math.floor((availH-PAD*(rows-1))/rows);
-    // which dimension is the tighter constraint?
-    const wFromH=Math.floor(hByRow/CARD_ASPECT);
-    const cardW=Math.min(wByCol,wFromH);
-    if(cardW>bestW){ bestW=cardW; bestCols=c; }
-  }
-
-  const cols=bestCols;
-  const rows=Math.ceil(n/cols);
-  const cardW=bestW;
-  const cardH=Math.round(cardW*CARD_ASPECT);
-
-  // centre the grid horizontally
-  const gridW=cols*cardW+(cols-1)*PAD;
-  const offsetX=Math.floor((W-gridW)/2);
-
-  // centre the grid vertically within available space
-  const gridH=rows*cardH+(rows-1)*PAD;
-  const offsetY=startY+Math.floor((availH-gridH)/2);
-
-  toAdd.forEach((c,i)=>{
-    const col=i%cols;
-    const row=Math.floor(i/cols);
-    const x=offsetX+col*(cardW+PAD);
-    const y=offsetY+row*(cardH+PAD);
-    const id=Date.now()+i;
-    const card={id,name:c.name,rarity:c.rarity,setName:c.setName,
-      imgUrl:c.imgL||c.imgS,img:null,x,y,w:cardW,h:cardH,aspect:null,showLabel:false};
-    cards.push(card);
-  });
-  renderList();
-
-  // load images async — update height once real aspect ratio known
-  let loaded=0;
-  const total=toAdd.length;
-  toAdd.forEach((c,i)=>{
-    const card=cards[cards.length-total+i];
-    loadImg(c.imgL||c.imgS,img=>{
-      if(img){
-        card.img=img;
-        card.aspect=img.naturalWidth/img.naturalHeight;
-        // keep the pre-calculated width, just correct height to actual ratio
-        card.h=Math.round(card.w/card.aspect);
-        const t=document.getElementById('th-'+card.id);
-        if(t){t.src=img.src;t.style.opacity='1';}
-      }
-      loaded++; render();
-      if(loaded===total) toast('Done! '+total+' cards placed — drag to adjust');
+  document.getElementById('card-input').addEventListener('change', e => {
+    const files = Array.from(e.target.files), start = cards.length; let done = 0;
+    files.forEach(f => {
+      const r = new FileReader();
+      r.onload = ev => {
+        cards.push({ src: ev.target.result, name: f.name });
+        if (++done === files.length) { idx = start; rebuildThumbs(); showCard(); startCycle(); }
+      };
+      r.readAsDataURL(f);
     });
   });
-  selectedIds.clear();
-}
 
-/* doAddSingle — old single-card flow from manual section */
-function doAddSingle(){
-  const manUrl=document.getElementById('manUrl').value.trim();
-  const manFile=document.getElementById('manFile').files[0];
-  const manName=document.getElementById('manName').value.trim();
-  const manRar=document.getElementById('manRar').value;
-  const manSet=document.getElementById('manSetName').value.trim();
-  if(!manUrl&&!manFile){ toast('Paste an image URL or upload a file'); return; }
-  const name=manName||'Card', rarity=manRar, imgUrl=manUrl;
-  const id=Date.now();
-  const card={id,name,rarity,setName:manSet,imgUrl,img:null,
-    x:60+(cards.length%5)*175,y:260+Math.floor(cards.length/5)*310,w:150,h:210,aspect:null,showLabel:true};
-  cards.push(card); renderList(); closeModal();
-  const done=img=>{ if(!img){toast('Image failed');return;} card.img=img; card.aspect=img.naturalWidth/img.naturalHeight; card.h=Math.round(card.w/card.aspect); render(); const t=document.getElementById('th-'+id); if(t){t.src=img.src||imgUrl;t.style.opacity='1';} };
-  if(manFile) fileToImg(manFile,done);
-  else{ toast('Loading…'); loadImg(imgUrl,done); }
-}
+  document.getElementById('logo-input').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      logoDisplay.src = ev.target.result;
+      logoLayer.classList.remove('hidden');
+      logoBadge.textContent = f.name; logoBadge.style.display = 'inline-block';
+      logoVisible = true; logoToggle.textContent = 'Logo: ON'; logoToggle.className = 'btn on';
+    };
+    r.readAsDataURL(f);
+  });
 
-/* ════════════════════════════
-   MODAL
-════════════════════════════ */
-function openModal(){
-  document.getElementById('mbg').classList.add('show');
-  document.getElementById('manUrl').value='';
-  document.getElementById('manName').value='';
-  document.getElementById('manSetName').value='';
-  document.getElementById('manRar').value='';
-}
-function closeModal(){ document.getElementById('mbg').classList.remove('show'); }
+  speedSlider.addEventListener('input', () => { speedVal.textContent = speedSlider.value + 's'; startCycle(); });
 
-/* Close dropdown when clicking outside it inside modal */
-document.getElementById('mbody').addEventListener('click',e=>{
-  if(!e.target.closest('#setWrap')) document.getElementById('setDrop').classList.remove('show');
-});
+  cycleToggle.addEventListener('click', () => {
+    autoCycle = !autoCycle;
+    cycleToggle.textContent = autoCycle ? 'Auto: ON' : 'Auto: OFF';
+    cycleToggle.className = autoCycle ? 'btn on' : 'btn';
+    startCycle();
+  });
 
-/* ════════════════════════════
-   ADD CARD
-════════════════════════════ */
-const RARITIES=['Common','Uncommon','Rare','Double Rare','Ultra Rare','Illustration Rare','Special Illustration Rare','Secret Rare','Gold'];
+  logoToggle.addEventListener('click', () => {
+    logoVisible = !logoVisible;
+    logoLayer.classList.toggle('hidden', !logoVisible);
+    logoToggle.textContent = logoVisible ? 'Logo: ON' : 'Logo: OFF';
+    logoToggle.className = logoVisible ? 'btn on' : 'btn';
+  });
 
-function doAdd(){
-  const manUrl=document.getElementById('manUrl').value.trim();
-  const manFile=document.getElementById('manFile').files[0];
-  const manName=document.getElementById('manName').value.trim();
-  const manRar=document.getElementById('manRar').value;
-  const manSet=document.getElementById('manSetName').value.trim();
-  let imgUrl='',name='',rarity='',setName=manSet;
-  if(chosenCard){
-    imgUrl=manUrl||chosenCard.imgL||chosenCard.imgS||'';
-    name=manName||chosenCard.name;
-    rarity=manRar||chosenCard.rarity;
-    setName=manSet||chosenCard.setName;
-  } else {
-    if(!manUrl&&!manFile){ toast('Please select a card or paste/upload an image'); return; }
-    name=manName||'Card'; rarity=manRar; imgUrl=manUrl;
+  document.getElementById('prev-btn').addEventListener('click', () => { prev(); startCycle(); });
+  document.getElementById('next-btn').addEventListener('click', () => { next(); startCycle(); });
+
+  document.getElementById('clear-btn').addEventListener('click', () => {
+    cards = []; idx = 0; clearInterval(timer);
+    logoDisplay.src = ''; logoLayer.classList.add('hidden');
+    logoBadge.style.display = 'none'; cardBadge.style.display = 'none';
+    document.getElementById('card-input').value = '';
+    document.getElementById('logo-input').value = '';
+    logoVisible = true; logoToggle.textContent = 'Logo: ON'; logoToggle.className = 'btn on';
+    autoCycle = true; cycleToggle.textContent = 'Auto: ON'; cycleToggle.className = 'btn on';
+    rebuildThumbs(); showCard();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowRight') { next(); startCycle(); }
+    if (e.key === 'ArrowLeft')  { prev(); startCycle(); }
+    if (e.key === 'l' || e.key === 'L') logoToggle.click();
+    if (e.key === ' ') { e.preventDefault(); cycleToggle.click(); }
+  });
+
+  document.getElementById('export-btn').addEventListener('click', () => {
+    if (!cards.length) { alert('Add at least one card first!'); return; }
+    const logoSrc  = logoDisplay.src || '';
+    const logoOn   = logoVisible;
+    const interval = getInterval();
+    const cardsJSON = JSON.stringify(cards.map(c => c.src));
+
+    const obsHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>OBS Card Maker</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; background:transparent; overflow:hidden; }
+  .logo-layer {
+    width:100%; display:flex; align-items:center; justify-content:center;
+    padding:10px 24px; min-height:64px; transition: opacity 0.25s;
   }
-  const id=Date.now();
-  const card={id,name,rarity,setName,imgUrl,img:null,x:60+(cards.length%5)*175,y:260+Math.floor(cards.length/5)*310,w:150,h:210,aspect:null,showLabel:true};
-  cards.push(card); renderList(); closeModal();
-  const done=img=>{ if(!img){toast('Image failed to load');return;} card.img=img; card.aspect=img.naturalWidth/img.naturalHeight; card.h=Math.round(card.w/card.aspect); render(); const t=document.getElementById('th-'+id); if(t){t.src=img.src||imgUrl;t.style.opacity='1';} };
-  if(manFile&&!chosenCard) fileToImg(manFile,done);
-  else{ toast('Loading image…'); loadImg(imgUrl,done); }
-  chosenCard=null;
-}
+  .logo-layer.hidden { opacity:0; }
+  .logo-layer img { max-width:76%; max-height:80px; object-fit:contain; }
+  .card-wrap { position:relative; width:320px; height:447px; margin:0 auto; }
+  .card-img {
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:cover; border-radius:14px;
+    opacity:0; transition:opacity 0.5s ease;
+  }
+  .card-img.visible { opacity:1; }
+  body { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:8px; }
+</style>
+</head>
+<body>
+<div class="logo-layer${logoOn ? '' : ' hidden'}" id="logo-layer">
+  ${logoSrc ? `<img src="${logoSrc}" alt="logo" />` : ''}
+</div>
+<div class="card-wrap">
+  <img class="card-img" id="card-img" src="" alt="card" />
+</div>
+<script>
+  var cards = ${cardsJSON};
+  var idx = 0;
+  var img = document.getElementById('card-img');
+  function show() { img.src = cards[idx]; setTimeout(function(){ img.classList.add('visible'); }, 20); }
+  function next() { img.classList.remove('visible'); setTimeout(function(){ idx = (idx+1)%cards.length; show(); }, 520); }
+  show();
+  if (cards.length > 1) setInterval(next, ${interval});
+<\/script>
+</body>
+</html>`;
 
-/* ════════════════════════════
-   CARD LIST
-════════════════════════════ */
-function renderList(){
-  const el=document.getElementById('card-list');
-  if(!cards.length){el.innerHTML='<div style="font-size:11px;color:#334;text-align:center;padding:14px 0">No cards yet</div>';return;}
-  el.innerHTML=cards.map(c=>`
-    <div class="slot" id="slot-${c.id}">
-      <div class="slot-h" onclick="toggleSlot(${c.id})">
-        <img class="sthumb" id="th-${c.id}" src="${c.imgUrl||''}" onerror="this.style.opacity='.15'" style="${c.imgUrl?'':'opacity:.15'}">
-        <div class="sinfo"><div class="sn" id="sn-${c.id}">${c.name||'Card'}</div><div class="sr">${c.rarity||''}${c.setName?' · '+c.setName:''}</div></div>
-        <button class="xbtn" onclick="event.stopPropagation();removeCard(${c.id})">✕</button>
-      </div>
-      <div class="slot-b" id="sb-${c.id}">
-        <span class="lbl">Image URL</span><input type="url" value="${c.imgUrl||''}" placeholder="https://…" oninput="updImg(${c.id},this.value)">
-        <span class="lbl">Or upload</span><input type="file" accept="image/*" onchange="updFile(${c.id},this.files[0])">
-        <span class="lbl">Name</span><input type="text" value="${c.name||''}" oninput="updF(${c.id},'name',this.value)">
-        <span class="lbl" style="display:flex;align-items:center;gap:6px"><input type="checkbox" ${c.showLabel?'checked':''} onchange="updF(${c.id},'showLabel',this.checked);render()"> show name label</span>
-        <span class="lbl">Width: <span id="wl-${c.id}">${c.w}</span>px</span>
-        <input type="range" min="60" max="800" value="${c.w}" oninput="resW(${c.id},+this.value)">
-        <span class="lbl">X: <span id="xl-${c.id}">${c.x}</span></span>
-        <input type="range" min="0" max="3000" value="${c.x}" oninput="updF(${c.id},'x',+this.value);document.getElementById('xl-${c.id}').textContent=this.value">
-        <span class="lbl">Y: <span id="yl-${c.id}">${c.y}</span></span>
-        <input type="range" min="0" max="4000" value="${c.y}" oninput="updF(${c.id},'y',+this.value);document.getElementById('yl-${c.id}').textContent=this.value">
-        <span class="lbl">Rarity</span>
-        <div class="rgrid" id="rg-${c.id}">${RARITIES.map(r=>`<button class="rb${c.rarity===r?' on':''}" onclick="setRar(${c.id},'${r}')">${r}</button>`).join('')}</div>
-      </div>
-    </div>`).join('');
-}
-
-function toggleSlot(id){ document.getElementById('sb-'+id)?.classList.toggle('open'); }
-function removeCard(id){ cards=cards.filter(c=>c.id!==id); renderList(); render(); }
-function updF(id,k,v){ const c=cards.find(c=>c.id===id); if(!c)return; c[k]=v; render(); if(k==='name'){const e=document.getElementById('sn-'+id);if(e)e.textContent=v||'Card';} }
-function resW(id,w){ const c=cards.find(c=>c.id===id); if(!c)return; c.w=w; if(c.aspect)c.h=Math.round(w/c.aspect); document.getElementById('wl-'+id).textContent=w; render(); }
-function setRar(id,r){ const c=cards.find(c=>c.id===id); if(!c)return; c.rarity=r; render(); const g=document.getElementById('rg-'+id); if(g) g.innerHTML=RARITIES.map(rr=>`<button class="rb${c.rarity===rr?' on':''}" onclick="setRar(${id},'${rr}')">${rr}</button>`).join(''); }
-function updImg(id,url){ const c=cards.find(c=>c.id===id); if(!c||!url)return; c.imgUrl=url; loadImg(url,img=>{if(!img)return;c.img=img;c.aspect=img.naturalWidth/img.naturalHeight;c.h=Math.round(c.w/c.aspect);const t=document.getElementById('th-'+id);if(t){t.src=url;t.style.opacity='1';}render();}); }
-function updFile(id,file){ if(!file)return; fileToImg(file,img=>{const c=cards.find(c=>c.id===id);if(!c)return;c.img=img;c.aspect=img.naturalWidth/img.naturalHeight;c.h=Math.round(c.w/c.aspect);const t=document.getElementById('th-'+id);if(t){t.src=img.src;t.style.opacity='1';}render();}); }
-
-/* ════════════════════════════
-   DOWNLOAD & TOAST
-════════════════════════════ */
-function clearBoard(){
-  if(cards.length===0){toast('Board is already empty');return;}
-  if(!confirm('Remove all '+cards.length+' card'+(cards.length>1?'s':'')+' from the board?')) return;
-  cards=[]; renderList(); render(); toast('Board cleared');
-}
-
-function dlPNG(){ draw(); setTimeout(()=>{ const a=document.createElement('a'); a.download='poster.png'; a.href=canvas.toDataURL('image/png'); a.click(); toast('PNG saved!'); },150); }
-function toast(m){ const el=document.getElementById('toast'); el.textContent=m; el.style.opacity='1'; clearTimeout(toast._t); toast._t=setTimeout(()=>el.style.opacity='0',2200); }
-
-/* ════════════════════════════
-   INIT
-════════════════════════════ */
-window.addEventListener('load',()=>{ fitZ(); renderList(); render(); });
-window.addEventListener('resize',fitZ);
+    const blob = new Blob([obsHTML], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'TYPENAME.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
 </script>
 </body>
 </html>
